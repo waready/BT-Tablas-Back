@@ -5,7 +5,7 @@ export default fp(async (app) => {
     await app.register(import('@fastify/swagger'), {
         openapi: {
             info: {
-                title: 'Fastify Pro API',
+                title: 'Fastify BT-Tablas API',
                 description: 'API profesional con Auth, RBAC, Auditoría y Export',
                 version: '1.0.0'
             },
