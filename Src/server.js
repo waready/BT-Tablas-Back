@@ -6,6 +6,9 @@ import prismaPlugin from './plugins/prisma.js'
 import authPlugin from './plugins/auth.js'
 import swaggerPlugin from './plugins/swagger.js'
 
+//import
+import authRoutes from './routes/auth.routes.js'
+
 const app = Fastify({ logger: true })
 await app.register(sensible)
 await app.register(cors, { origin: true })
@@ -13,26 +16,37 @@ await app.register(prismaPlugin)
 await app.register(authPlugin)
 await app.register(swaggerPlugin)
 
+
+
 // Middleware Prisma para auditar mutaciones
+// ✅ Middleware SAFE
 app.prisma.$use(async (params, next) => {
-    const start = Date.now()
     const result = await next(params)
-    const tookMs = Date.now() - start
-    if (['create', 'update', 'delete', 'upsert'].includes(params.action)) {
-        try {
-            const userId = app?.lastReqUserId ||
-                null // settable desde preHandlers si deseas
-            await app.prisma.auditLog.create({
-                data: {
-                    userId,
-                    action: `${params.model}.${params.action}`,
-                    entity: params.model,
-                    entityId: result?.id ?? null,
-                    metadata: { tookMs },
-                }
-            })
-        } catch (e) { app.log.warn({ e }, 'Audit middleware failed') }
+
+    const isMutation = ['create', 'update', 'delete', 'upsert'].includes(params.action)
+    const isAudit = params.model === 'AuditLog'
+
+    if (isMutation && !isAudit) {
+        // No bloquear la respuesta del endpoint:
+        setImmediate(async () => {
+            try {
+                await app.prisma.auditLog.create({
+                    data: {
+                        userId: app?.lastReqUserId ?? null,          // puede ser null en /register (está bien)
+                        action: `${params.model}.${params.action}`,
+                        entity: params.model,
+                        entityId: (result && typeof result === 'object' && 'id' in result && result.id != null)
+                            ? String(result.id)
+                            : null,
+                        metadata: { ts: Date.now() }
+                    }
+                })
+            } catch (e) {
+                app.log.warn({ e }, 'AuditLog create failed (ignored)')
+            }
+        })
     }
+
     return result
 })
 
@@ -44,6 +58,20 @@ app.get('/health', {
     }
 }, async () => ({ ok: true }))
 
+
+app.get('/api/v1/audit-logs', {
+    preHandler: app.auth, // si quieres protegerlo
+    schema: { tags: ['Audit'] }
+}, async (req) => {
+    return app.prisma.auditLog.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 100
+    })
+})
+
+
+
+await app.register(authRoutes, { prefix: '/api/v1' })
 
 await app.ready()
 app.swagger() // expone /docs
