@@ -8,14 +8,20 @@ import swaggerPlugin from './plugins/swagger.js'
 
 //import
 import authRoutes from './routes/auth.routes.js'
+import paisesRoutes from './routes/pais.routes.js'
 
 const app = Fastify({ logger: true })
 await app.register(sensible)
-await app.register(cors, { origin: true })
+await app.register(cors, {
+    origin: true, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+    allowedHeaders: ['content-type', 'authorization', 'x-requested-with'],
+    credentials: true,
+    strictPreflight: false,
+    maxAge: 86400
+})
 await app.register(prismaPlugin)
 await app.register(authPlugin)
 await app.register(swaggerPlugin)
-
 
 
 // Middleware Prisma para auditar mutaciones
@@ -50,14 +56,12 @@ app.prisma.$use(async (params, next) => {
     return result
 })
 
-
 app.get('/health', {
     schema: {
         tags: ['System'],
         description: 'Healthcheck'
     }
 }, async () => ({ ok: true }))
-
 
 app.get('/api/v1/audit-logs', {
     preHandler: app.auth, // si quieres protegerlo
@@ -69,9 +73,10 @@ app.get('/api/v1/audit-logs', {
     })
 })
 
-
-
+//Routes auth 
 await app.register(authRoutes, { prefix: '/api/v1' })
+await app.register(paisesRoutes, { prefix: '/api/v1' })
+
 
 await app.ready()
 app.swagger() // expone /docs
