@@ -1,0 +1,93 @@
+# -----------------------------
+# Node / Fastify base
+# -----------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+.pnpm-debug.log
+dist/
+build/
+.tmp/
+.temp/
+.DS_Store
+Thumbs.db
+
+# -----------------------------
+# Env / secrets
+# -----------------------------
+.env
+.env.*            # .env.local, .env.development, etc.
+!.env.example     # se versiona el ejemplo
+
+# -----------------------------
+# Logs / PIDs / coverage
+# -----------------------------
+logs/
+*.log
+*.pid
+*.seed
+*.pid.lock
+coverage/
+.nyc_output/
+
+# -----------------------------
+# Editor / OS
+# -----------------------------
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# -----------------------------
+# Prisma
+# -----------------------------
+prisma/dev.db
+prisma/dev.db-journal
+# Si generas cliente custom fuera de node_modules:
+# prisma/generated/
+
+# -----------------------------
+# Fastify: estáticos / uploads / exports
+# Mantén el directorio (con .gitkeep) pero ignora su contenido.
+# -----------------------------
+
+# uploads (por ejemplo, imágenes subidas por usuarios)
+uploads/**
+!uploads/.gitkeep
+
+# public/uploads (si sirves estáticos desde /public)
+public/uploads/**
+!public/uploads/.gitkeep
+
+# exports (ej. Excel/CSV generados)
+exports/**
+!exports/.gitkeep
+
+# temp (archivos temporales de procesamiento)
+temp/**
+!temp/.gitkeep
+tmp/**
+!tmp/.gitkeep
+
+# caché de vistas/plantillas, si aplica
+cache/**
+!cache/.gitkeep
+
+# -----------------------------
+# Extras opcionales
+# -----------------------------
+# dump de DBs
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+
+# archivos generados por herramientas (ej. swagger json generado en runtime)
+openapi.json
+swagger.json
+
+# snapshots de pruebas (si no quieres versionarlos)
+# __snapshots__/

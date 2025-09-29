@@ -1,0 +1,35 @@
+{
+  "name": "bt-tablas-app",
+  "version": "1.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon --watch src --exec node src/server.js",
+    "m:dev": "prisma migrate dev",
+    "m:deploy": "prisma migrate deploy",
+    "seed": "prisma db seed",
+    "start": "node src/server.js",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "fastify": "^5",
+    "@fastify/sensible": "^6",
+    "@fastify/cors": "^11",
+    "@fastify/swagger": "^9",
+    "@fastify/swagger-ui": "^5",
+    "@fastify/jwt": "^9",
+    "@prisma/client": "^5.17.0",
+    "mysql2": "^3.11.3",
+    "bcrypt": "^5.1.1",
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "prisma": "^5.17.0",
+    "nodemon": "^3.1.4",
+    "vitest": "^1.6.0"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  }
+}

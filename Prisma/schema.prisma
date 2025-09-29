@@ -1,0 +1,171 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "mysql"
+    url      = env("DATABASE_URL")
+}
+
+// ===========================
+// USUARIOS + RBAC + AUDITORÍA
+// ===========================
+
+model User {
+    // Identidad
+    id String @id @default(cuid())
+
+    // Campos base
+    email    String  @unique
+    password String
+    name     String
+    isActive Boolean @default(true)
+
+    // Campos adicionales (portados de Adonis)
+    username   String? @unique
+    nombre     String?
+    login_ldap String? @map("login_ldap")
+    avatarUrl  String? @map("avatar_url")
+    foto       String?
+    externoId  Int?    @map("externo_id")
+    rolExterno String? @map("rol_externo")
+
+    // Timestamps
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    // Relaciones
+    roles       UserRole[]
+    AuditLog    AuditLog[]
+    inventarios Inventario[]
+
+    @@map("users")
+}
+
+model Role {
+    id          String           @id @default(cuid())
+    name        String           @unique
+    description String?
+    users       UserRole[]
+    permissions RolePermission[]
+    createdAt   DateTime         @default(now())
+}
+
+model Permission {
+    id          String           @id @default(cuid())
+    action      String
+    resource    String
+    description String?
+    roles       RolePermission[]
+
+    @@unique([action, resource])
+}
+
+model UserRole {
+    userId String
+    roleId String
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+    @@id([userId, roleId])
+}
+
+model RolePermission {
+    roleId       String
+    permissionId String
+    role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+    permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+    @@id([roleId, permissionId])
+}
+
+model AuditLog {
+    id        String   @id @default(cuid())
+    userId    String?
+    user      User?    @relation(fields: [userId], references: [id])
+    action    String
+    entity    String?
+    entityId  String?
+    metadata  Json?
+    ip        String?
+    createdAt DateTime @default(now())
+}
+
+// ============================================
+// DOMINIO: AREAS / SISTEMAS / PAISES / INVENTARIOS
+// ============================================
+
+model Area {
+    id        Int      @id @default(autoincrement())
+    nombre    String
+    codigo    String
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    inventarios Inventario[]
+
+    @@map("areas")
+}
+
+model Sistema {
+    id                 Int      @id @default(autoincrement())
+    cod_area_funcional Int
+    cod_sistema        Int
+    corr               Int
+    sistema            String
+    createdAt          DateTime @default(now()) @map("created_at")
+    updatedAt          DateTime @updatedAt @map("updated_at")
+
+    inventarios Inventario[]
+
+    @@map("sistemas")
+}
+
+model Pais {
+    id        Int      @id @default(autoincrement())
+    nombre    String
+    isoCode   String?
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    inventarios Inventario[]
+
+    @@map("paises")
+}
+
+model Inventario {
+    id                  Int      @id @default(autoincrement())
+    codigo              String
+    descripcion         String
+    datos               String?
+    en_desarrollo       String?
+    capa                String?
+    usuario             String?
+    documento_detalle   String?
+    depende_de_la_plaza Boolean?
+    comentarios         String?
+    depende_del_entorno Boolean?
+    ambiente_testing    String?
+    borrar              Boolean?
+
+    // FKs opcionales
+    areaFuncionalId Int?
+    sistemaId       Int?
+    paisId          Int?
+    userId          String? // referencia a User.id (String)
+
+    createdAt DateTime @default(now()) @map("created_at")
+    updatedAt DateTime @updatedAt @map("updated_at")
+
+    // Relaciones
+    areaFuncional Area?    @relation(fields: [areaFuncionalId], references: [id], onDelete: Cascade)
+    sistema       Sistema? @relation(fields: [sistemaId], references: [id], onDelete: Cascade)
+    pais          Pais?    @relation(fields: [paisId], references: [id], onDelete: SetNull)
+    user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+    @@index([areaFuncionalId])
+    @@index([sistemaId])
+    @@index([paisId])
+    @@index([userId])
+    @@map("inventarios")
+}
