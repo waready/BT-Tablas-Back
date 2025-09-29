@@ -35,9 +35,9 @@ model User {
     updatedAt DateTime @updatedAt @map("updated_at")
 
     // Relaciones
-    roles       UserRole[]
-    AuditLog    AuditLog[]
-    inventarios Inventario[]
+    roles           UserRole[]
+    AuditLog        AuditLog[]
+    inventarioTabla InventarioTabla[]
 
     @@map("users")
 }
@@ -95,16 +95,16 @@ model AuditLog {
 // DOMINIO: AREAS / SISTEMAS / PAISES / INVENTARIOS
 // ============================================
 
-model Area {
+model AreaFuncional {
     id        Int      @id @default(autoincrement())
     nombre    String
     codigo    String
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt @map("updated_at")
 
-    inventarios Inventario[]
+    inventarioTablas InventarioTabla[]
 
-    @@map("areas")
+    //@@map("areas")
 }
 
 model Sistema {
@@ -116,7 +116,7 @@ model Sistema {
     createdAt          DateTime @default(now()) @map("created_at")
     updatedAt          DateTime @updatedAt @map("updated_at")
 
-    inventarios Inventario[]
+    inventarioTablas InventarioTabla[]
 
     @@map("sistemas")
 }
@@ -128,12 +128,12 @@ model Pais {
     createdAt DateTime @default(now()) @map("created_at")
     updatedAt DateTime @updatedAt @map("updated_at")
 
-    inventarios Inventario[]
+    inventarioTablas InventarioTabla[]
 
     @@map("paises")
 }
 
-model Inventario {
+model InventarioTabla {
     id                  Int      @id @default(autoincrement())
     codigo              String
     descripcion         String
@@ -158,14 +158,14 @@ model Inventario {
     updatedAt DateTime @updatedAt @map("updated_at")
 
     // Relaciones
-    areaFuncional Area?    @relation(fields: [areaFuncionalId], references: [id], onDelete: Cascade)
-    sistema       Sistema? @relation(fields: [sistemaId], references: [id], onDelete: Cascade)
-    pais          Pais?    @relation(fields: [paisId], references: [id], onDelete: SetNull)
-    user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+    areaFuncional AreaFuncional? @relation(fields: [areaFuncionalId], references: [id], onDelete: Cascade)
+    sistema       Sistema?       @relation(fields: [sistemaId], references: [id], onDelete: Cascade)
+    pais          Pais?          @relation(fields: [paisId], references: [id], onDelete: SetNull)
+    user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+    //@@map("inventarios")
 
     @@index([areaFuncionalId])
     @@index([sistemaId])
     @@index([paisId])
     @@index([userId])
-    @@map("inventarios")
 }

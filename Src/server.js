@@ -10,6 +10,8 @@ import swaggerPlugin from './plugins/swagger.js'
 import authRoutes from './routes/auth.routes.js'
 import paisesRoutes from './routes/pais.routes.js'
 import sistemasRoutes from './routes/sistema.routes.js'
+import areaFuncionalRoutes from './routes/areaFuncional.routes.js'
+
 
 const app = Fastify({ logger: true })
 await app.register(sensible)
@@ -78,6 +80,7 @@ app.get('/api/v1/audit-logs', {
 await app.register(authRoutes, { prefix: '/api/v1' })
 await app.register(paisesRoutes, { prefix: '/api/v1' })
 await app.register(sistemasRoutes, { prefix: '/api/v1' })
+await app.register(areaFuncionalRoutes, { prefix: '/api/v1' })
 
 await app.ready()
 app.swagger() // expone /docs

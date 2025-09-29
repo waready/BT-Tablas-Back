@@ -118,8 +118,8 @@ async function seedAreas() {
         { nombre: 'Genérico', codigo: '99000' }
     ]
     for (const a of areas) {
-        const exists = await prisma.area.findFirst({ where: { codigo: a.codigo } })
-        if (!exists) await prisma.area.create({ data: a })
+        const exists = await prisma.areaFuncional.findFirst({ where: { codigo: a.codigo } })
+        if (!exists) await prisma.areaFuncional.create({ data: a })
     }
 }
 
