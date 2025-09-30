@@ -18,6 +18,7 @@ import authRoutes from './routes/auth.routes.js'
 import paisesRoutes from './routes/pais.routes.js'
 import sistemasRoutes from './routes/sistema.routes.js'
 import areaFuncionalRoutes from './routes/areaFuncional.routes.js'
+import inventarioTablaRoutes from './routes/inventarioTabla.routes.js'
 
 
 const app = Fastify({ logger: true })
@@ -96,6 +97,7 @@ await app.register(meRoutes, { prefix: '/api/v1' })
 await app.register(permissionRoutes, { prefix: '/api/v1' })
 await app.register(roleRoutes, { prefix: '/api/v1' })
 await app.register(userRoleRoutes, { prefix: '/api/v1' })
+await app.register(inventarioTablaRoutes, { prefix: '/api/v1' })
 
 await app.ready()
 app.swagger() // expone /docs
