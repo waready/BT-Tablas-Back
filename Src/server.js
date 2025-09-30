@@ -5,8 +5,15 @@ import cors from '@fastify/cors'
 import prismaPlugin from './plugins/prisma.js'
 import authPlugin from './plugins/auth.js'
 import swaggerPlugin from './plugins/swagger.js'
+import accessPlugin from './plugins/access.js'
+
+//permisos
+import permissionRoutes from './routes/permission.routes.js'
+import roleRoutes from './routes/role.routes.js'
+import userRoleRoutes from './routes/userRole.routes.js'
 
 //import
+import meRoutes from './routes/me.routes.js'
 import authRoutes from './routes/auth.routes.js'
 import paisesRoutes from './routes/pais.routes.js'
 import sistemasRoutes from './routes/sistema.routes.js'
@@ -22,7 +29,9 @@ await app.register(cors, {
     strictPreflight: false,
     maxAge: 86400
 })
+
 await app.register(prismaPlugin)
+await app.register(accessPlugin)
 await app.register(authPlugin)
 await app.register(swaggerPlugin)
 
@@ -81,6 +90,12 @@ await app.register(authRoutes, { prefix: '/api/v1' })
 await app.register(paisesRoutes, { prefix: '/api/v1' })
 await app.register(sistemasRoutes, { prefix: '/api/v1' })
 await app.register(areaFuncionalRoutes, { prefix: '/api/v1' })
+await app.register(meRoutes, { prefix: '/api/v1' })
+
+
+await app.register(permissionRoutes, { prefix: '/api/v1' })
+await app.register(roleRoutes, { prefix: '/api/v1' })
+await app.register(userRoleRoutes, { prefix: '/api/v1' })
 
 await app.ready()
 app.swagger() // expone /docs

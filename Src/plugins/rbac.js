@@ -12,7 +12,6 @@ export async function userPermissions(prisma, userId) {
     return set
 }
 
-
 export function requirePermission(perm) {
     return async (req, reply) => {
         const perms = await userPermissions(req.server.prisma, req.user.id)

@@ -1,25 +1,52 @@
+
 // src/utils/rbac.js
+
 export async function getUserRoles(prisma, userId) {
-    const roles = await prisma.role.findMany({
+    return prisma.role.findMany({
         where: { users: { some: { userId } } },
         select: { id: true, name: true, description: true }
     })
-    return roles
 }
 
 export async function getUserPermissions(prisma, userId) {
-    // Permisos que llegan por los roles del usuario
-    const perms = await prisma.permission.findMany({
+    // trae permisos vía roles del usuario
+    return prisma.permission.findMany({
         where: {
             roles: {
                 some: {
-                    role: {
-                        users: { some: { userId } }
-                    }
+                    role: { users: { some: { userId } } }
                 }
             }
         },
-        select: { action: true, resource: true, description: true }
+        select: { id: true, action: true, resource: true, description: true }
     })
-    return perms
+}
+
+export async function userHasRole(prisma, userId, roleName) {
+    const found = await prisma.userRole.findFirst({
+        where: { userId, role: { name: roleName } },
+        select: { userId: true }
+    })
+    return !!found
+}
+
+export async function userHasPermission(prisma, userId, resource, action) {
+    const found = await prisma.rolePermission.findFirst({
+        where: {
+            role: { users: { some: { userId } } },
+            permission: { resource, action }
+        },
+        select: { roleId: true }
+    })
+    return !!found
+}
+
+// Utilidad para normalizar checks (p. ej. desde string "inventario:read")
+export function parsePermissionString(perm) {
+    // formatos soportados: "resource:action"  o  {resource, action}
+    if (typeof perm === 'string') {
+        const [resource, action] = perm.split(':')
+        return { resource, action }
+    }
+    return perm
 }
