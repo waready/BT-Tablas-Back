@@ -20,18 +20,18 @@ export async function list(app, { page = 1, limit = 10, search = '', sortBy = 'i
         : {}
 
     const [items, total] = await app.prisma.$transaction([
-        app.prisma.inventario.findMany({
+        app.prisma.inventarioTabla.findMany({
             where, skip, take, orderBy,
             include: { areaFuncional: true, sistema: true, pais: true, user: { select: { id: true, email: true, name: true } } }
         }),
-        app.prisma.inventario.count({ where })
+        app.prisma.inventarioTabla.count({ where })
     ])
 
     return { items, page: Number(page) || 1, limit: Number(limit) || 10, total }
 }
 
 export async function getById(app, id) {
-    const item = await app.prisma.inventario.findUnique({
+    const item = await app.prisma.inventarioTabla.findUnique({
         where: { id: Number(id) },
         include: { areaFuncional: true, sistema: true, pais: true, user: { select: { id: true, email: true, name: true } } }
     })
@@ -41,14 +41,23 @@ export async function getById(app, id) {
 
 export async function ensureFKs(app, data) {
     const tasks = []
+
     if (data.areaFuncionalId != null) {
-        tasks.push(app.prisma.area.findUnique({ where: { id: Number(data.areaFuncionalId) } }))
+        tasks.push(app.prisma.areaFuncional.findUnique({
+            where: { id: Number(data.areaFuncionalId) }
+        }))
     } else tasks.push(Promise.resolve(true))
+
     if (data.sistemaId != null) {
-        tasks.push(app.prisma.sistema.findUnique({ where: { id: Number(data.sistemaId) } }))
+        tasks.push(app.prisma.sistema.findUnique({
+            where: { id: Number(data.sistemaId) }
+        }))
     } else tasks.push(Promise.resolve(true))
+
     if (data.paisId != null) {
-        tasks.push(app.prisma.pais.findUnique({ where: { id: Number(data.paisId) } }))
+        tasks.push(app.prisma.pais.findUnique({
+            where: { id: Number(data.paisId) }
+        }))
     } else tasks.push(Promise.resolve(true))
 
     const [areaOk, sistOk, paisOk] = await Promise.all(tasks)
@@ -57,16 +66,17 @@ export async function ensureFKs(app, data) {
     if (data.paisId != null && !paisOk) throw app.httpErrors.badRequest('paisId inválido')
 }
 
+
 export async function create(app, payload) {
     await ensureFKs(app, payload)
-    const item = await app.prisma.inventario.create({ data: payload })
+    const item = await app.prisma.inventarioTabla.create({ data: payload })
     return item
 }
 
 export async function update(app, id, payload) {
     await ensureFKs(app, payload)
     try {
-        const item = await app.prisma.inventario.update({
+        const item = await app.prisma.inventarioTabla.update({
             where: { id: Number(id) },
             data: payload
         })
@@ -79,7 +89,7 @@ export async function update(app, id, payload) {
 
 export async function remove(app, id) {
     try {
-        await app.prisma.inventario.delete({ where: { id: Number(id) } })
+        await app.prisma.inventarioTabla.delete({ where: { id: Number(id) } })
         return { ok: true }
     } catch (e) {
         if (e.code === 'P2025') throw app.httpErrors.notFound('Inventario no encontrado')
@@ -137,7 +147,7 @@ export async function importFromExcel(app, filePath) {
     const findAreaId = async (nombre) => {
         const key = toStr(nombre).toLowerCase(); if (!key) return null
         if (cache.area.has(key)) return cache.area.get(key)
-        const r = await app.prisma.area.findFirst({ where: { nombre: { equals: key, mode: 'insensitive' } } })
+        const r = await app.prisma.areaFuncional.findFirst({ where: { nombre: { equals: key, mode: 'insensitive' } } })
         const id = r ? r.id : null; cache.area.set(key, id); return id
     }
     const findSistemaId = async (nombre) => {
@@ -176,7 +186,7 @@ export async function importFromExcel(app, filePath) {
             const sistemaId = await findSistemaId(sistemaNombre)
             const paisId = await findPaisId(paisNombre)
 
-            await app.prisma.inventario.create({
+            await app.prisma.inventarioTabla.create({
                 data: {
                     codigo, descripcion, datos,
                     areaFuncionalId, sistemaId, paisId,

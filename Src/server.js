@@ -4,15 +4,13 @@ import sensible from '@fastify/sensible'
 import cors from '@fastify/cors'
 import prismaPlugin from './plugins/prisma.js'
 import authPlugin from './plugins/auth.js'
+import accessPlugin from './plugins/access.js'   // <-- después de authPlugin
 import swaggerPlugin from './plugins/swagger.js'
-import accessPlugin from './plugins/access.js'
 
-//permisos
+// rutas...
 import permissionRoutes from './routes/permission.routes.js'
 import roleRoutes from './routes/role.routes.js'
 import userRoleRoutes from './routes/userRole.routes.js'
-
-//import
 import meRoutes from './routes/me.routes.js'
 import authRoutes from './routes/auth.routes.js'
 import paisesRoutes from './routes/pais.routes.js'
@@ -20,11 +18,12 @@ import sistemasRoutes from './routes/sistema.routes.js'
 import areaFuncionalRoutes from './routes/areaFuncional.routes.js'
 import inventarioTablaRoutes from './routes/inventarioTabla.routes.js'
 
-
 const app = Fastify({ logger: true })
+
 await app.register(sensible)
 await app.register(cors, {
-    origin: true, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+    origin: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
     allowedHeaders: ['content-type', 'authorization', 'x-requested-with'],
     credentials: true,
     strictPreflight: false,
@@ -32,26 +31,21 @@ await app.register(cors, {
 })
 
 await app.register(prismaPlugin)
-await app.register(accessPlugin)
-await app.register(authPlugin)
+await app.register(authPlugin)       // ✅ primero JWT
+await app.register(accessPlugin)     // ✅ luego access (usa jwt)
 await app.register(swaggerPlugin)
 
-
-// Middleware Prisma para auditar mutaciones
-// ✅ Middleware SAFE
+// Prisma audit SAFE (tu mismo código)
 app.prisma.$use(async (params, next) => {
     const result = await next(params)
-
     const isMutation = ['create', 'update', 'delete', 'upsert'].includes(params.action)
     const isAudit = params.model === 'AuditLog'
-
     if (isMutation && !isAudit) {
-        // No bloquear la respuesta del endpoint:
         setImmediate(async () => {
             try {
                 await app.prisma.auditLog.create({
                     data: {
-                        userId: app?.lastReqUserId ?? null,          // puede ser null en /register (está bien)
+                        userId: app?.lastReqUserId ?? null,
                         action: `${params.model}.${params.action}`,
                         entity: params.model,
                         entityId: (result && typeof result === 'object' && 'id' in result && result.id != null)
@@ -65,42 +59,33 @@ app.prisma.$use(async (params, next) => {
             }
         })
     }
-
     return result
 })
 
 app.get('/health', {
-    schema: {
-        tags: ['System'],
-        description: 'Healthcheck'
-    }
+    schema: { tags: ['System'], description: 'Healthcheck' }
 }, async () => ({ ok: true }))
 
 app.get('/api/v1/audit-logs', {
-    preHandler: app.auth, // si quieres protegerlo
-    schema: { tags: ['Audit'] }
-}, async (req) => {
-    return app.prisma.auditLog.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 100
-    })
+    preHandler: [app.requireAuth],        // ✅ usar el decorador correcto
+    schema: { tags: ['Audit'], security: [{ bearerAuth: [] }] }
+}, async () => {
+    return app.prisma.auditLog.findMany({ orderBy: { createdAt: 'desc' }, take: 100 })
 })
 
-//Routes auth 
+// Rutas (orden ya OK)
 await app.register(authRoutes, { prefix: '/api/v1' })
 await app.register(paisesRoutes, { prefix: '/api/v1' })
 await app.register(sistemasRoutes, { prefix: '/api/v1' })
 await app.register(areaFuncionalRoutes, { prefix: '/api/v1' })
 await app.register(meRoutes, { prefix: '/api/v1' })
-
-
 await app.register(permissionRoutes, { prefix: '/api/v1' })
 await app.register(roleRoutes, { prefix: '/api/v1' })
 await app.register(userRoleRoutes, { prefix: '/api/v1' })
 await app.register(inventarioTablaRoutes, { prefix: '/api/v1' })
 
 await app.ready()
-app.swagger() // expone /docs
+app.swagger()
 const port = Number(process.env.PORT || 3000)
 app.listen({ port, host: '0.0.0.0' })
     .catch(err => { app.log.error(err); process.exit(1) })

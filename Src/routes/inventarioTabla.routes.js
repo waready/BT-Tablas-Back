@@ -41,33 +41,33 @@ export default async function inventarioTablaRoutes(app) {
     }
 
     app.get('/inventarios', {
-        preHandler: mustAuth,
+        //preHandler: mustAuth,
         schema: { tags: ['Inventario'], summary: 'Listar inventarios', security: [{ bearerAuth: [] }], querystring: ListQuery }
     }, (req, reply) => Controller.index(app, req, reply))
 
     app.get('/inventarios/:id', {
-        preHandler: mustAuth,
+        //preHandler: mustAuth,
         schema: { tags: ['Inventario'], summary: 'Obtener inventario', security: [{ bearerAuth: [] }], params: IdParam }
     }, (req, reply) => Controller.show(app, req, reply))
 
     app.post('/inventarios', {
-        preHandler: mustAuth,
+        //preHandler: mustAuth,
         schema: { tags: ['Inventario'], summary: 'Crear inventario', security: [{ bearerAuth: [] }], body: BodyCreateUpdate }
     }, (req, reply) => Controller.create(app, req, reply))
 
     app.put('/inventarios/:id', {
-        preHandler: mustAuth,
+        //preHandler: mustAuth,
         schema: { tags: ['Inventario'], summary: 'Actualizar inventario', security: [{ bearerAuth: [] }], params: IdParam, body: BodyCreateUpdate }
     }, (req, reply) => Controller.update(app, req, reply))
 
     app.delete('/inventarios/:id', {
-        preHandler: mustAuth,
+        //preHandler: mustAuth,
         schema: { tags: ['Inventario'], summary: 'Eliminar inventario', security: [{ bearerAuth: [] }], params: IdParam }
     }, (req, reply) => Controller.remove(app, req, reply))
 
     // Exportar a Excel desde SQL
     app.post('/inventarios/export-excel', {
-        preHandler: mustAuth,
+        //preHandler: mustAuth,
         schema: {
             tags: ['Inventario'],
             summary: 'Exportar a Excel desde SQL',
@@ -78,7 +78,7 @@ export default async function inventarioTablaRoutes(app) {
 
     // Importar desde Excel (ruta en disco)
     app.post('/inventarios/import-excel', {
-        preHandler: mustAuth,
+        //preHandler: mustAuth,
         schema: {
             tags: ['Inventario'],
             summary: 'Importar inventarios desde Excel (ruta en disco)',
