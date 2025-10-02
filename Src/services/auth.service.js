@@ -15,7 +15,7 @@ export async function login(app, { email, password }) {
     const roles = await getUserRoles(app.prisma, user.id)
     const permissions = await getUserPermissions(app.prisma, user.id)
     const token = await signJwt(app, user, roles)
-    return { token, user: { id: user.id, email: user.email, username: user.username ?? null, name: user.name ?? null }, roles, permissions }
+    return { token, expiresIn: process.env.JWT_ACCESS_EXPIRES || '15m', user: { id: user.id, email: user.email, username: user.username ?? null, name: user.name ?? null }, roles, permissions }
 }
 
 export async function register(app, { email, password }) {
