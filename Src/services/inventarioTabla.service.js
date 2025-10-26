@@ -1,5 +1,7 @@
 // src/services/inventarioTabla.service.js
 import ExcelJS from 'exceljs'
+import fs from 'node:fs/promises'
+import path from 'node:path'
 
 const takeCap = (n, cap = 100) => Math.min(Math.max(Number(n) || 10, 1), cap)
 
@@ -123,84 +125,148 @@ export async function exportSqlToExcel(app, sql) {
 }
 
 /** Importar desde un archivo Excel (ruta completa en disco) */
-export async function importFromExcel(app, filePath) {
-    const wb = new ExcelJS.Workbook()
-    await wb.xlsx.readFile(filePath)
-    const ws = wb.getWorksheet('Inventario') || wb.worksheets[0]
+export async function importFromExcel(app, _filePathIgnored) {
+  // Archivo fijo dentro de publick/public
+  const FILE_NAME = 'PRD_99000_GL_V3R1_ Inventario BBDD.4-1.xlsm'
+  const baseDirs = [
+    app.publicDir && path.resolve(app.publicDir),
+    path.resolve(process.cwd(), 'Src/public'),
+  ].filter(Boolean)
 
-    let ok = 0, fail = 0
-    const toStr = v => (v == null ? '' : (typeof v === 'object' && v.text) ? String(v.text).trim() : String(v).trim())
-    const toBool = (v, def = false) => {
-        const s = toStr(v).toLowerCase()
-        if (!s) return def
-        if (['s', 'si', 'sí', 'y', 'yes', 'true', '1', 'x', '✓'].includes(s)) return true
-        if (['n', 'no', 'false', '0'].includes(s)) return false
-        return def
-    }
+  // Localiza el archivo
+  let absPath
+  for (const base of baseDirs) {
+    const p = path.normalize(path.join(base, FILE_NAME))
+    try { await fs.access(p); absPath = p; break } catch {}
+  }
+  if (!absPath) {
+    throw app.httpErrors.badRequest(`No se encontró el archivo en: ${baseDirs.join(' | ')}`)
+  }
 
-    // Caches por nombre
-    const cache = {
-        area: new Map(),
-        sist: new Map(),
-        pais: new Map()
-    }
-    const findAreaId = async (nombre) => {
-        const key = toStr(nombre).toLowerCase(); if (!key) return null
-        if (cache.area.has(key)) return cache.area.get(key)
-        const r = await app.prisma.areaFuncional.findFirst({ where: { nombre: { equals: key, mode: 'insensitive' } } })
-        const id = r ? r.id : null; cache.area.set(key, id); return id
-    }
-    const findSistemaId = async (nombre) => {
-        const key = toStr(nombre).toLowerCase(); if (!key) return null
-        if (cache.sist.has(key)) return cache.sist.get(key)
-        const r = await app.prisma.sistema.findFirst({ where: { sistema: { equals: key, mode: 'insensitive' } } })
-        const id = r ? r.id : null; cache.sist.set(key, id); return id
-    }
-    const findPaisId = async (nombre) => {
-        const key = toStr(nombre).toLowerCase(); if (!key) return null
-        if (cache.pais.has(key)) return cache.pais.get(key)
-        const r = await app.prisma.pais.findFirst({ where: { nombre: { equals: key, mode: 'insensitive' } } })
-        const id = r ? r.id : null; cache.pais.set(key, id); return id
-    }
+  // Carga Excel
+  const wb = new ExcelJS.Workbook()
+  await wb.xlsx.readFile(absPath)
+  const ws = wb.getWorksheet('Inventario') || wb.worksheets[0]
+  if (!ws) throw app.httpErrors.badRequest('El libro no contiene hojas (ni “Inventario” ni primera hoja)')
 
-    for (let rowNumber = 5; rowNumber <= ws.rowCount; rowNumber++) {
-        const row = ws.getRow(rowNumber); if (!row || !row.hasValues) continue
-        try {
-            const codigo = toStr(row.getCell(2).value) || 'Desconocida'
-            const descripcion = toStr(row.getCell(3).value) || 'Desconocida'
-            const datos = toStr(row.getCell(4).value) || null
-            const areaNombre = toStr(row.getCell(5).value)
-            const sistemaNombre = toStr(row.getCell(6).value)
-            const en_desarrollo = toBool(row.getCell(7).value)
-            const capa = toStr(row.getCell(8).value) || null
-            const usuario = toStr(row.getCell(11).value) || null
-            const documento_detalle = toStr(row.getCell(12).value) || null
-            const depende_de_la_plaza = toBool(row.getCell(13).value)
-            const comentarios = toStr(row.getCell(14).value) || null
-            const depende_del_entorno = toBool(row.getCell(15).value)
-            const ambiente_testing = toStr(row.getCell(16).value) || null
-            const paisNombre = toStr(row.getCell(17).value)
-            const borrar = toBool(row.getCell(18).value)
-
-            const areaFuncionalId = await findAreaId(areaNombre)
-            const sistemaId = await findSistemaId(sistemaNombre)
-            const paisId = await findPaisId(paisNombre)
-
-            await app.prisma.inventarioTabla.create({
-                data: {
-                    codigo, descripcion, datos,
-                    areaFuncionalId, sistemaId, paisId,
-                    en_desarrollo, capa, usuario, documento_detalle,
-                    depende_de_la_plaza, comentarios, depende_del_entorno,
-                    ambiente_testing, borrar
-                }
-            })
-            ok++
-        } catch (e) {
-            fail++
-            app.log.warn({ row: rowNumber, e }, 'Error importando fila')
-        }
+  // Helpers
+  const toStr = (v) => {
+    if (v == null) return ''
+    if (typeof v === 'object') {
+      if (v.text != null) return String(v.text).trim()
+      if (v.result != null) return String(v.result).trim() // fórmulas
+      return String(v).trim()
     }
+    return String(v).trim()
+  }
+  const toBool = (v, def = false) => {
+    const s = toStr(v).toLowerCase()
+    if (s === '' || s === 'n/a' || s === '-') return def
+    if (['s','si','sí','y','yes','true','1','x','✓'].includes(s)) return true
+    if (['n','no','false','0'].includes(s)) return false
+    return def
+  }
+  // Para columnas String que conceptualmente son booleanas
+  const toSiNo = (v, defNo = 'NO') => (toBool(v, false) ? 'SI' : defNo)
 
-    return { ok, fail }
+  // Normalización básica y alias de país
+  const norm = (s) => String(s||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toLowerCase()
+  const countryAlias = (s) => {
+    const k = norm(s)
+    if (k === 'mejico' || k === 'mejico.') return 'mexico'
+    return k
+  }
+
+  // Caches y finders (sin `mode`, ya que usas MySQL)
+  const cache = { area: new Map(), sist: new Map(), pais: new Map() }
+
+  const findAreaId = async (nombre) => {
+    const key = norm(nombre); if (!key) return undefined
+    if (cache.area.has(key)) return cache.area.get(key)
+    const r = await app.prisma.areaFuncional.findFirst({
+      where: { nombre: key }, // MySQL suele ser case/accents insensitive por collation
+      select: { id: true },
+    })
+    const id = r?.id; cache.area.set(key, id); return id
+  }
+
+  const findSistemaId = async (nombre) => {
+    const key = norm(nombre); if (!key) return undefined
+    if (cache.sist.has(key)) return cache.sist.get(key)
+    const r = await app.prisma.sistema.findFirst({
+      where: { sistema: key },
+      select: { id: true },
+    })
+    const id = r?.id; cache.sist.set(key, id); return id
+  }
+
+  const findPaisId = async (nombre) => {
+    const key = countryAlias(nombre); if (!key) return undefined
+    if (cache.pais.has(key)) return cache.pais.get(key)
+    const r = await app.prisma.pais.findFirst({
+      where: { nombre: key },
+      select: { id: true },
+    })
+    const id = r?.id; cache.pais.set(key, id); return id
+  }
+
+  let ok = 0, fail = 0
+
+  for (let rowNumber = 5; rowNumber <= ws.rowCount; rowNumber++) {
+    const row = ws.getRow(rowNumber); if (!row || !row.hasValues) continue
+    try {
+      // Lectura de columnas
+      const codigo              = toStr(row.getCell(2).value) || 'Desconocida'
+      const descripcion         = toStr(row.getCell(3).value) || 'Desconocida'
+      const datos               = toStr(row.getCell(4).value) || 'Datos'
+      const areaNombre          = toStr(row.getCell(5).value)
+      const sistemaNombre       = toStr(row.getCell(6).value)
+      const en_desarrollo       = toSiNo(row.getCell(7).value)           // String? -> "SI"/"NO"
+      const capa                = toStr(row.getCell(8).value) || 'Core'
+      const usuario             = toStr(row.getCell(11).value) || 'default_user'
+      const documento_detalle   = toStr(row.getCell(12).value) || 'N/A'
+      const depende_de_la_plaza = toBool(row.getCell(13).value)          // Boolean?
+      const comentarios         = toStr(row.getCell(14).value) || ''     // String?
+      const depende_del_entorno = toBool(row.getCell(15).value)          // Boolean?
+      const ambiente_testing    = toSiNo(row.getCell(16).value, 'NO')    // String? -> "SI"/"NO"
+      const paisNombre          = toStr(row.getCell(17).value)
+      const borrar              = toBool(row.getCell(18).value)          // Boolean?
+
+      const areaFuncionalId = await findAreaId(areaNombre)
+      const sistemaId       = await findSistemaId(sistemaNombre)
+      const paisId          = await findPaisId(paisNombre)
+
+      // Construcción del payload conforme a tu schema Prisma (tipos correctos)
+      const data = {
+        codigo,
+        descripcion,
+        datos,                       // String?
+        en_desarrollo,               // String? ("SI"/"NO")
+        capa,                        // String?
+        usuario,                     // String?
+        documento_detalle,           // String?
+        depende_de_la_plaza,         // Boolean?
+        comentarios,                 // String?
+        depende_del_entorno,         // Boolean?
+        ambiente_testing,            // String? ("SI"/"NO")
+        borrar,                      // Boolean?
+        ...(areaFuncionalId !== undefined ? { areaFuncionalId } : {}),
+        ...(sistemaId       !== undefined ? { sistemaId }       : {}),
+        ...(paisId          !== undefined ? { paisId }          : {}),
+      }
+
+      await app.prisma.inventarioTabla.create({ data })
+      ok++
+    } catch (e) {
+      fail++
+      app.log.warn({
+        row: rowNumber,
+        name: e?.name,
+        message: (e?.message || '').slice(0, 600)
+      }, 'Error importando fila')
+    }
+  }
+
+  return { ok, fail }
 }
+
