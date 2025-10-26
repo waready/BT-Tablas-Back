@@ -7,6 +7,11 @@ import authPlugin from './plugins/auth.js'
 import accessPlugin from './plugins/access.js'   // <-- después de authPlugin
 import swaggerPlugin from './plugins/swagger.js'
 
+// imports mínimos para estáticos
+import staticPlugin from '@fastify/static'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
 // rutas...
 import permissionRoutes from './routes/permission.routes.js'
 import roleRoutes from './routes/role.routes.js'
@@ -35,6 +40,19 @@ await app.register(authPlugin)       // ✅ primero JWT
 await app.register(accessPlugin)     // ✅ luego access (usa jwt)
 await app.register(swaggerPlugin)
 
+const __filename = fileURLToPath(import.meta.url)
+const __dirname  = path.dirname(__filename)
+await app.register(staticPlugin, {
+  root: path.resolve(__dirname, 'public'),
+  prefix: '/',                                  
+})
+app.get('/', (req, reply) => reply.type('text/html; charset=utf-8').sendFile('index.html'))
+app.get('/healthz', async () => ({ status: 'ok', service: 'bt-tablas', time: new Date().toISOString() }))
+app.get('/health', {
+  schema: { tags: ['System'], description: 'Healthcheck' }
+}, async () => ({ ok: true }))
+
+
 // Prisma audit SAFE (tu mismo código)
 app.prisma.$use(async (params, next) => {
     const result = await next(params)
@@ -61,10 +79,6 @@ app.prisma.$use(async (params, next) => {
     }
     return result
 })
-
-app.get('/health', {
-    schema: { tags: ['System'], description: 'Healthcheck' }
-}, async () => ({ ok: true }))
 
 app.get('/api/v1/audit-logs', {
     preHandler: [app.requireAuth],        // ✅ usar el decorador correcto

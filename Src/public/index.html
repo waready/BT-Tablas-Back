@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BT-Tablas • Servidor en ejecución</title>
+
+  <!-- Bootstrap CSS + Icons (CDN) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg1:#0b1020; --bg2:#141a2f; --card:#10182b; --border:#22314f;
+      --ok:#22c55e; --muted:#9fb0c3; --txt:#e6eefc;
+    }
+    html,body{height:100%}
+    body{
+      background: radial-gradient(1200px 700px at 20% -20%, #1e2a44 0%, transparent 60%),
+                  radial-gradient(1000px 600px at 120% 20%, #12213e 0%, transparent 60%),
+                  linear-gradient(180deg, var(--bg1), var(--bg2));
+      color: var(--txt);
+    }
+    .card{
+      background: linear-gradient(180deg, rgba(16,24,43,.9), rgba(12,18,33,.9));
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    .badge-ok{
+      background: rgba(34,197,94,.12);
+      color: var(--ok);
+      border: 1px solid rgba(34,197,94,.35);
+      font-weight: 600;
+    }
+    .kv .k{ color: var(--muted); font-size:.8rem; text-transform:uppercase; letter-spacing:.08em }
+    .kv .v{ color: var(--txt); font-weight:600; }
+    a { color:#86b7ff; text-decoration:none }
+    a:hover{ text-decoration:underline }
+  </style>
+</head>
+<body>
+  <div class="d-flex align-items-center justify-content-center" style="min-height:100%;">
+    <div class="container py-4">
+      <div class="row justify-content-center">
+        <div class="col-lg-8">
+          <div class="card p-4 p-md-5">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span id="badge" class="badge badge-ok px-3 py-2"><i class="bi bi-check2-circle me-1"></i> BT-Tablas está levantado</span>
+            </div>
+            <h1 class="h3 mb-2">Servidor en ejecución <span class="ms-1">🚀</span></h1>
+            <p class="mb-4 text-secondary">Si ves esta página, el backend respondió correctamente en <code>GET /</code>. Puedes usar <a href="/healthz">/healthz</a> para chequeos automáticos.</p>
+
+            <div class="row g-3">
+              <div class="col-6 col-md-3">
+                <div class="kv">
+                  <div class="k">Servicio</div>
+                  <div class="v">bt-tablas</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="kv">
+                  <div class="k">Estado</div>
+                  <div class="v" id="statusText">Online</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="kv">
+                  <div class="k">Hora local</div>
+                  <div class="v" id="localTime">—</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="kv">
+                  <div class="k">Healthcheck</div>
+                  <div class="v"><a href="/healthz" class="link-light">/healthz</a></div>
+                </div>
+              </div>
+            </div>
+
+            <hr class="my-4 border-secondary-subtle">
+
+            <div class="d-flex flex-wrap gap-2">
+              <a class="btn btn-outline-light btn-sm" href="/">Inicio</a>
+              <a class="btn btn-outline-info btn-sm" href="/healthz">Ver JSON de salud</a>
+               <a class="btn btn-outline-success btn-sm" href="/docs">Documentación EndPoints</a>
+            </div>
+          </div>
+
+          <p class="text-center text-secondary mt-3 mb-0" style="font-size:.9rem">
+            © <span id="year"></span> BT-Tablas. Todos los derechos reservados.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS (opcional) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+  <script>
+    // Hora local & año
+    document.getElementById('localTime').textContent = new Date().toLocaleString();
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Intento de /healthz para mostrar estado real
+    fetch('/healthz', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(j => {
+        document.getElementById('statusText').textContent = (j.status || 'ok').toUpperCase();
+      })
+      .catch(() => {
+        document.getElementById('statusText').textContent = 'DESCONOCIDO';
+        const b = document.getElementById('badge');
+        b.classList.remove('badge-ok');
+        b.classList.add('text-bg-warning');
+        b.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i> BT-Tablas (sin healthz)';
+      });
+  </script>
+</body>
+</html>
