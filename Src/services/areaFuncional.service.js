@@ -1,26 +1,28 @@
 // src/services/areaFuncional.service.js
-export async function list(app, { q, codigo, skip = 0, take = 50 }) {
-    const where = {
-        ...(q ? {
+
+const takeCap = (n, cap = 100) => Math.min(Math.max(Number(n) || 10, 1), cap)
+
+export async function list(app, { page = 1, limit = 10, search = '', sortBy = 'id', order = 'asc' }) {
+    const skip = (Math.max(Number(page) || 1, 1) - 1) * (Number(limit) || 10)
+    const take = takeCap(limit, 100)
+    const orderBy = ['id', 'nombre','codigo'].includes(sortBy) ? { [sortBy]: order === 'desc' ? 'desc' : 'asc' } : { id: 'asc' }
+    const where = search
+        ? {
             OR: [
-                { nombre: { contains: q, mode: 'insensitive' } },
-                { codigo: { contains: q, mode: 'insensitive' } }
+                { nombre: { contains: search} },
+                { codigo: { contains: search} }
             ]
-        } : {}),
-        ...(codigo ? { codigo: { contains: codigo, mode: 'insensitive' } } : {})
-    }
+        }
+        : {}
 
     const [items, total] = await app.prisma.$transaction([
         app.prisma.areaFuncional.findMany({
-            where,
-            orderBy: [{ codigo: 'asc' }, { nombre: 'asc' }],
-            skip: Number(skip) || 0,
-            take: Math.min(Number(take) || 50, 100)
+           where, skip, take, orderBy,
         }),
         app.prisma.areaFuncional.count({ where })
     ])
 
-    return { items, total }
+    return {  items, page: Number(page) || 1, limit: Number(limit) || 10, total}
 }
 
 export async function getById(app, id) {

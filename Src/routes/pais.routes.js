@@ -32,9 +32,11 @@ export default async function paisesRoutes(app) {
     const ListQuery = {
         type: 'object',
         properties: {
-            q: { type: 'string' },
-            skip: { type: 'integer', minimum: 0 },
-            take: { type: 'integer', minimum: 1, maximum: 100 }
+            page: { type: 'integer', minimum: 1 },
+            limit: { type: 'integer', minimum: 1, maximum: 100 },
+            search: { type: 'string' },
+            sortBy: { type: 'string', enum: ['id', 'codigo', 'descripcion', 'createdAt', 'updatedAt'] },
+            order: { type: 'string', enum: ['asc', 'desc'] }
         }
     }
 

@@ -2,8 +2,8 @@
 import * as AreaFuncionalService from '../services/areaFuncional.service.js'
 
 export async function list(app, req, reply) {
-    const { q, codigo, skip, take } = req.query || {}
-    const data = await AreaFuncionalService.list(app, { q, codigo, skip, take })
+    const { page, limit, search, sortBy, order } = req.query || {}
+    const data = await AreaFuncionalService.list(app, { page, limit, search, sortBy, order })
     return reply.send(data)
 }
 

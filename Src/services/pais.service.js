@@ -1,25 +1,27 @@
 // src/services/pais.service.js
-export async function list(app, { q, skip = 0, take = 50 }) {
-    const where = q
+const takeCap = (n, cap = 100) => Math.min(Math.max(Number(n) || 10, 1), cap)
+
+export async function list(app, { page = 1, limit = 10, search = '', sortBy = 'id', order = 'asc' }) {
+    const skip = (Math.max(Number(page) || 1, 1) - 1) * (Number(limit) || 10)
+    const take = takeCap(limit, 100)
+    const orderBy = ['id', 'nombre','isoCode'].includes(sortBy) ? { [sortBy]: order === 'desc' ? 'desc' : 'asc' } : { id: 'asc' }
+    const where = search
         ? {
             OR: [
-                { nombre: { contains: q, mode: 'insensitive' } },
-                { isoCode: { contains: q, mode: 'insensitive' } }
+                { nombre: { contains: search} },
+                { isoCode: { contains: search} }
             ]
         }
         : {}
 
     const [items, total] = await app.prisma.$transaction([
         app.prisma.pais.findMany({
-            where,
-            orderBy: { nombre: 'asc' },
-            skip: Number(skip) || 0,
-            take: Math.min(Number(take) || 50, 100)
+            where, skip, take, orderBy,
         }),
         app.prisma.pais.count({ where })
     ])
 
-    return { items, total }
+    return { items, page: Number(page) || 1, limit: Number(limit) || 10, total }    
 }
 
 export async function getById(app, id) {
@@ -27,7 +29,7 @@ export async function getById(app, id) {
     if (!pais) throw app.httpErrors.notFound('País no encontrado')
     return pais
 }
-
+    
 export async function create(app, { nombre, isoCode }) {
     // Puedes reforzar unicidad si lo deseas con un índice único en Prisma
     return app.prisma.pais.create({

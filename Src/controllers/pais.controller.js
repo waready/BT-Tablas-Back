@@ -2,8 +2,8 @@
 import * as PaisService from '../services/pais.service.js'
 
 export async function list(app, req, reply) {
-    const { q, skip, take } = req.query || {}
-    const data = await PaisService.list(app, { q, skip, take })
+    const { page, limit, search, sortBy, order } = req.query || {}  
+    const data = await PaisService.list(app, { page, limit, search, sortBy, order })
     return reply.send(data)
 }
 

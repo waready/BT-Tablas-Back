@@ -2,8 +2,8 @@
 import * as SistemaService from '../services/sistema.service.js'
 
 export async function list(app, req, reply) {
-    const { q, area, cod_sistema, skip, take } = req.query || {}
-    const data = await SistemaService.list(app, { q, area, cod_sistema, skip, take })
+    const { page, limit, search, sortBy, order } = req.query || {} 
+    const data = await SistemaService.list(app, { page, limit, search, sortBy, order })
     return reply.send(data)
 }
 

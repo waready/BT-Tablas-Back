@@ -22,15 +22,23 @@ export default async function inventarioTablaRoutes(app) {
         type: 'object',
         additionalProperties: true,
         properties: {
-            codigo: { type: 'string' },
-            descripcion: { type: 'string' },
+            codigo: { type: 'string', minLength: 1 },
+            descripcion: { type: 'string', minLength: 1 },
             datos: { type: ['string', 'null'] },
-            areaFuncionalId: { type: ['integer', 'null'] },
-            sistemaId: { type: ['integer', 'null'] },
-            paisId: { type: ['integer', 'null'] },
-            en_desarrollo: { type: ['boolean', 'null'] },
+
+            // 👇 STRING, no boolean
+            en_desarrollo: { type: ['string', 'null'] }, // o { anyOf: [{type:'string', enum: enDesarrolloEnum}, {type:'null'}] }
+
             capa: { type: ['string', 'null'] },
             usuario: { type: ['string', 'null'] },
+
+            // FKs como integer|null
+            areaFuncionalId: { anyOf: [{ type: 'integer' }, { type: 'null' }] },
+            sistemaId: { anyOf: [{ type: 'integer' }, { type: 'null' }] },
+            paisId: { anyOf: [{ type: 'integer' }, { type: 'null' }] },
+
+            userId: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+
             documento_detalle: { type: ['string', 'null'] },
             depende_de_la_plaza: { type: ['boolean', 'null'] },
             comentarios: { type: ['string', 'null'] },

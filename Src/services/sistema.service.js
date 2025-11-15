@@ -1,23 +1,43 @@
 // src/services/sistema.service.js
-export async function list(app, { q, area, cod_sistema, skip = 0, take = 50 }) {
-    const where = {
-        ...(q ? { sistema: { contains: q, mode: 'insensitive' } } : {}),
-        ...(area != null ? { cod_area_funcional: Number(area) } : {}),
-        ...(cod_sistema != null ? { cod_sistema: Number(cod_sistema) } : {})
-    }
+const takeCap = (n, cap = 100) => Math.min(Math.max(Number(n) || 10, 1), cap)
 
-    const [items, total] = await app.prisma.$transaction([
-        app.prisma.sistema.findMany({
-            where,
-            orderBy: [{ cod_area_funcional: 'asc' }, { corr: 'asc' }],
-            skip: Number(skip) || 0,
-            take: Math.min(Number(take) || 50, 100)
-        }),
-        app.prisma.sistema.count({ where })
-    ])
+export async function list(app, { page = 1, limit = 10, search = '', sortBy = 'id', order = 'asc' }) {
+  const skip = (Math.max(Number(page) || 1, 1) - 1) * (Number(limit) || 10)
+  const take = Math.min(Number(limit) || 10, 100)
+  const orderBy = ['id','sistema','corr','cod_sistema','cod_area_funcional'].includes(sortBy)
+    ? { [sortBy]: order === 'desc' ? 'desc' : 'asc' }
+    : { id: 'asc' }
 
-    return { items, total }
+  // Detectar si el valor buscado es un número
+  const isNumericSearch = !isNaN(Number(search))
+  const numericValue = Number(search)
+
+  const where = search
+    ? {
+        OR: [
+          // Campo string
+          { sistema: { contains: search } },
+
+          // Campos numéricos, solo si la búsqueda es numérica
+          ...(isNumericSearch
+            ? [
+                { corr: { equals: numericValue } },
+                { cod_sistema: { equals: numericValue } },
+                { cod_area_funcional: { equals: numericValue } },
+              ]
+            : [])
+        ]
+      }
+    : {}
+
+  const [items, total] = await app.prisma.$transaction([
+    app.prisma.sistema.findMany({ where, skip, take, orderBy }),
+    app.prisma.sistema.count({ where })
+  ])
+
+  return { items, page: Number(page) || 1, limit: Number(limit) || 10, total }
 }
+
 
 export async function getById(app, id) {
     const sys = await app.prisma.sistema.findUnique({ where: { id: Number(id) } })
