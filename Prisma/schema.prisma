@@ -32,6 +32,7 @@ model User {
   roles           UserRole[]
   AuditLog        AuditLog[]
   inventarioTabla InventarioTabla[]
+  chatSessions   ChatSession[]
 
   @@map("users")
 }
@@ -196,4 +197,29 @@ model InventarioTabla {
   @@index([paisId])
   @@index([userId])
   @@index([versionId])
+}
+
+model ChatSession {
+  id        Int           @id @default(autoincrement())
+  userId    String?
+  title     String?
+  createdAt DateTime      @default(now())
+  user      User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  messages  ChatMessage[]
+  @@index([userId])
+}
+
+model ChatMessage {
+  id         Int        @id @default(autoincrement())
+  session    ChatSession @relation(fields: [sessionId], references: [id])
+  sessionId  Int
+  role       ChatRole
+  content    String
+  createdAt  DateTime   @default(now())
+}
+
+enum ChatRole {
+  user
+  assistant
+  system
 }

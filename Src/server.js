@@ -7,6 +7,7 @@ import authPlugin from './plugins/auth.js'
 import accessPlugin from './plugins/access.js'   // <-- después de authPlugin
 import swaggerPlugin from './plugins/swagger.js'
 import cookie from '@fastify/cookie'
+import openaiPlugin from './plugins/openai.js'
 
 // imports mínimos para estáticos
 import staticPlugin from '@fastify/static'
@@ -25,6 +26,7 @@ import sistemasRoutes from './routes/sistema.routes.js'
 import areaFuncionalRoutes from './routes/areaFuncional.routes.js'
 import inventarioTablaRoutes from './routes/inventarioTabla.routes.js'
 import reportesRoutes from './routes/reportes.routes.js'
+import assistantRoutes from './routes/assistant.routes.js'
 
 const app = Fastify({ logger: true, trustProxy: true })
 
@@ -37,10 +39,10 @@ await app.register(cookie, {
   hook: 'onRequest'
 })
 
-await app.register(sensible)
+await app.register(sensible) 
 
 await app.register(cors, {
-  origin: ['http://localhost:9000'],   // 👈 AQUÍ en vez de '*'
+  origin: true,   // 👈 AQUÍ en vez de '*'
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
   allowedHeaders: ['content-type', 'authorization', 'x-requested-with'],
   credentials: true,                   // 👈 obligatorio para cookies
@@ -48,7 +50,7 @@ await app.register(cors, {
   maxAge: 86400
 })
 
-
+await app.register(openaiPlugin)
 await app.register(prismaPlugin)
 await app.register(authPlugin)       // ✅ primero JWT
 await app.register(accessPlugin)     // ✅ luego access (usa jwt)
@@ -118,6 +120,7 @@ await app.register(userRoleRoutes, { prefix: '/api/v1' })
 await app.register(userRoutes, { prefix: '/api/v1' })
 await app.register(inventarioTablaRoutes, { prefix: '/api/v1' })
 await app.register(reportesRoutes, { prefix: '/api/v1' })
+await app.register(assistantRoutes,{ prefix: '/api/v1' })
 
 await app.ready()
 app.swagger()
