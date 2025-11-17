@@ -6,11 +6,20 @@ export async function list(app, { page = 1, limit = 10, search = '', sortBy = 'i
     const skip = (Math.max(Number(page) || 1, 1) - 1) * (Number(limit) || 10)
     const take = takeCap(limit, 100)
     const orderBy = ['id', 'nombre','codigo'].includes(sortBy) ? { [sortBy]: order === 'desc' ? 'desc' : 'asc' } : { id: 'asc' }
+    
+      // Detectar si el valor buscado es un número
+    const isNumericSearch = !isNaN(Number(search))
+    const numericValue = Number(search)
+
     const where = search
         ? {
             OR: [
                 { nombre: { contains: search} },
-                { codigo: { contains: search} }
+                ...(isNumericSearch
+            ? [
+                { codigo: { equals: numericValue } }
+              ]
+            : [])
             ]
         }
         : {}
@@ -36,14 +45,14 @@ export async function create(app, { nombre, codigo }) {
     if (dup) throw app.httpErrors.conflict('El código ya existe')
 
     return app.prisma.areaFuncional.create({
-        data: { nombre: nombre.trim(), codigo: codigo.trim() }
+        data: { nombre: nombre.trim(), codigo: Number(codigo)}
     })
 }
 
 export async function update(app, id, { nombre, codigo }) {
     const data = {
         ...(nombre != null ? { nombre: String(nombre).trim() } : {}),
-        ...(codigo != null ? { codigo: String(codigo).trim() } : {})
+        ...(codigo != null ? { codigo: Number(codigo) } : {})
     }
 
     try {

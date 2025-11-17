@@ -79,7 +79,7 @@ export default async function inventarioTablaRoutes(app) {
         schema: {
             tags: ['Inventario'],
             summary: 'Exportar a Excel desde SQL',
-            security: [{ bearerAuth: [] }],
+            //security: [{ bearerAuth: [] }],
             body: { type: 'object', required: ['query'], properties: { query: { type: 'string', minLength: 6 } } }
         }
     }, (req, reply) => Controller.exportExcel(app, req, reply))

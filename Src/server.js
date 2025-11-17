@@ -6,6 +6,7 @@ import prismaPlugin from './plugins/prisma.js'
 import authPlugin from './plugins/auth.js'
 import accessPlugin from './plugins/access.js'   // <-- después de authPlugin
 import swaggerPlugin from './plugins/swagger.js'
+import cookie from '@fastify/cookie'
 
 // imports mínimos para estáticos
 import staticPlugin from '@fastify/static'
@@ -16,30 +17,47 @@ import { fileURLToPath } from 'node:url'
 import permissionRoutes from './routes/permission.routes.js'
 import roleRoutes from './routes/role.routes.js'
 import userRoleRoutes from './routes/userRole.routes.js'
+import userRoutes from './routes/users.routes.js'
 import meRoutes from './routes/me.routes.js'
 import authRoutes from './routes/auth.routes.js'
 import paisesRoutes from './routes/pais.routes.js'
 import sistemasRoutes from './routes/sistema.routes.js'
 import areaFuncionalRoutes from './routes/areaFuncional.routes.js'
 import inventarioTablaRoutes from './routes/inventarioTabla.routes.js'
+import reportesRoutes from './routes/reportes.routes.js'
 
-const app = Fastify({ logger: true })
+const app = Fastify({ logger: true, trustProxy: true })
+
+// decoradores donde guardaremos datos del request actual
+app.decorate('lastReqUserId', null)
+app.decorate('lastReqIp', null)
+
+await app.register(cookie, {
+  secret: process.env.COOKIE_SECRET || 'changeme',
+  hook: 'onRequest'
+})
 
 await app.register(sensible)
+
 await app.register(cors, {
-    origin: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
-    allowedHeaders: ['content-type', 'authorization', 'x-requested-with'],
-    credentials: true,
-    strictPreflight: false,
-    maxAge: 86400
+  origin: ['http://localhost:9000'],   // 👈 AQUÍ en vez de '*'
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+  allowedHeaders: ['content-type', 'authorization', 'x-requested-with'],
+  credentials: true,                   // 👈 obligatorio para cookies
+  strictPreflight: false,
+  maxAge: 86400
 })
+
 
 await app.register(prismaPlugin)
 await app.register(authPlugin)       // ✅ primero JWT
 await app.register(accessPlugin)     // ✅ luego access (usa jwt)
 await app.register(swaggerPlugin)
 
+// 🔹 solo IP aquí
+app.addHook('onRequest', async (request, reply) => {
+  app.lastReqIp = request.ip
+})
 const __filename = fileURLToPath(import.meta.url)
 const __dirname  = path.dirname(__filename)
 await app.register(staticPlugin, {
@@ -64,6 +82,7 @@ app.prisma.$use(async (params, next) => {
                 await app.prisma.auditLog.create({
                     data: {
                         userId: app?.lastReqUserId ?? null,
+                        ip: app.lastReqIp ?? null,
                         action: `${params.model}.${params.action}`,
                         entity: params.model,
                         entityId: (result && typeof result === 'object' && 'id' in result && result.id != null)
@@ -96,7 +115,9 @@ await app.register(meRoutes, { prefix: '/api/v1' })
 await app.register(permissionRoutes, { prefix: '/api/v1' })
 await app.register(roleRoutes, { prefix: '/api/v1' })
 await app.register(userRoleRoutes, { prefix: '/api/v1' })
+await app.register(userRoutes, { prefix: '/api/v1' })
 await app.register(inventarioTablaRoutes, { prefix: '/api/v1' })
+await app.register(reportesRoutes, { prefix: '/api/v1' })
 
 await app.ready()
 app.swagger()

@@ -25,7 +25,7 @@ export default async function areaFuncionalRoutes(app) {
         additionalProperties: false,
         properties: {
             nombre: { type: 'string', minLength: 1 },
-            codigo: { type: 'string', minLength: 1 }
+            codigo: { type: 'integer', minimum: 1}
         }
     }
 
@@ -34,7 +34,7 @@ export default async function areaFuncionalRoutes(app) {
         additionalProperties: false,
         properties: {
             nombre: { type: 'string', minLength: 1 },
-            codigo: { type: 'string', minLength: 1 }
+            codigo: { type: 'integer', minimum: 1}
         }
     }
 

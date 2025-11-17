@@ -129,30 +129,68 @@ export async function exportSqlToExcel(app, sql) {
 
 /** Importar desde un archivo Excel (ruta completa en disco) */
 export async function importFromExcel(app, _filePathIgnored) {
-  // Archivo fijo dentro de publick/public
+  // ============================
+  // 1) Archivo y versión
+  // ============================
   const FILE_NAME = 'PRD_99000_GL_V3R1_ Inventario BBDD.4-1.xlsm'
+
+  // ⚠️ AJUSTA ESTE CODE según la versión que corresponda a ese Excel
+  const VERSION_CODE = 'GL_V3R1.1'
+
+  // Localiza el archivo en posibles carpetas
   const baseDirs = [
     app.publicDir && path.resolve(app.publicDir),
     path.resolve(process.cwd(), 'Src/public'),
   ].filter(Boolean)
 
-  // Localiza el archivo
   let absPath
   for (const base of baseDirs) {
     const p = path.normalize(path.join(base, FILE_NAME))
-    try { await fs.access(p); absPath = p; break } catch { }
+    try {
+      await fs.access(p)
+      absPath = p
+      break
+    } catch {
+      // ignorar y seguir probando
+    }
   }
+
   if (!absPath) {
     throw app.httpErrors.badRequest(`No se encontró el archivo en: ${baseDirs.join(' | ')}`)
   }
 
-  // Carga Excel
+  // ============================
+  // 2) Obtener CatalogVersion
+  // ============================
+  const version = await app.prisma.catalogVersion.findUnique({
+    where: { code: VERSION_CODE },
+  })
+
+  if (!version) {
+    throw app.httpErrors.badRequest(
+      `No existe CatalogVersion con code="${VERSION_CODE}". Corre el seed de versiones o ajusta VERSION_CODE.`
+    )
+  }
+
+  const versionId = version.id
+  app.log.info({ versionId, VERSION_CODE }, 'Importando inventario para esta versión')
+
+  // Si quieres limpiar antes de importar, descomenta:
+  // await app.prisma.inventarioTabla.deleteMany({ where: { versionId } })
+
+  // ============================
+  // 3) Cargar Excel
+  // ============================
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.readFile(absPath)
   const ws = wb.getWorksheet('Inventario') || wb.worksheets[0]
-  if (!ws) throw app.httpErrors.badRequest('El libro no contiene hojas (ni “Inventario” ni primera hoja)')
+  if (!ws) {
+    throw app.httpErrors.badRequest('El libro no contiene hojas (ni “Inventario” ni primera hoja)')
+  }
 
-  // Helpers
+  // ============================
+  // 4) Helpers
+  // ============================
   const toStr = (v) => {
     if (v == null) return ''
     if (typeof v === 'object') {
@@ -162,6 +200,7 @@ export async function importFromExcel(app, _filePathIgnored) {
     }
     return String(v).trim()
   }
+
   const toBool = (v, def = false) => {
     const s = toStr(v).toLowerCase()
     if (s === '' || s === 'n/a' || s === '-') return def
@@ -169,90 +208,131 @@ export async function importFromExcel(app, _filePathIgnored) {
     if (['n', 'no', 'false', '0'].includes(s)) return false
     return def
   }
+
   // Para columnas String que conceptualmente son booleanas
   const toSiNo = (v, defNo = 'NO') => (toBool(v, false) ? 'SI' : defNo)
 
   // Normalización básica y alias de país
-  const norm = (s) => String(s || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase()
+  const norm = (s) =>
+    String(s || '')
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '') // quitar acentos
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase()
+
   const countryAlias = (s) => {
     const k = norm(s)
     if (k === 'mejico' || k === 'mejico.') return 'mexico'
     return k
   }
 
-  // Caches y finders (sin `mode`, ya que usas MySQL)
-  const cache = { area: new Map(), sist: new Map(), pais: new Map() }
+  // ============================
+  // 5) Caches y finders
+  // ============================
+  const cache = {
+    area: new Map(),
+    sist: new Map(),
+    pais: new Map(),
+  }
 
   const findAreaId = async (nombre) => {
-    const key = norm(nombre); if (!key) return undefined
+    const key = norm(nombre)
+    if (!key) return undefined
     if (cache.area.has(key)) return cache.area.get(key)
+
+    // Igual que antes, sin complicarnos con versionId aquí
     const r = await app.prisma.areaFuncional.findFirst({
-      where: { nombre: key }, // MySQL suele ser case/accents insensitive por collation
+      where: { nombre: key }, // MySQL lo suele comparar según la collation
       select: { id: true },
     })
-    const id = r?.id; cache.area.set(key, id); return id
+
+    const id = r?.id
+    cache.area.set(key, id)
+    return id
   }
 
   const findSistemaId = async (nombre) => {
-    const key = norm(nombre); if (!key) return undefined
+    const key = norm(nombre)
+    if (!key) return undefined
     if (cache.sist.has(key)) return cache.sist.get(key)
+
     const r = await app.prisma.sistema.findFirst({
       where: { sistema: key },
       select: { id: true },
     })
-    const id = r?.id; cache.sist.set(key, id); return id
+
+    const id = r?.id
+    cache.sist.set(key, id)
+    return id
   }
 
   const findPaisId = async (nombre) => {
-    const key = countryAlias(nombre); if (!key) return undefined
+    const key = countryAlias(nombre)
+    if (!key) return undefined
     if (cache.pais.has(key)) return cache.pais.get(key)
+
     const r = await app.prisma.pais.findFirst({
       where: { nombre: key },
       select: { id: true },
     })
-    const id = r?.id; cache.pais.set(key, id); return id
+
+    const id = r?.id
+    cache.pais.set(key, id)
+    return id
   }
 
-  let ok = 0, fail = 0
+  // ============================
+  // 6) Loop de filas
+  // ============================
+  let ok = 0
+  let fail = 0
 
   for (let rowNumber = 5; rowNumber <= ws.rowCount; rowNumber++) {
-    const row = ws.getRow(rowNumber); if (!row || !row.hasValues) continue
+    const row = ws.getRow(rowNumber)
+    if (!row || !row.hasValues) continue
+
     try {
-      // Lectura de columnas
+      // Lectura de columnas (lo mismo que tenías)
       const codigo = toStr(row.getCell(2).value) || 'Desconocida'
       const descripcion = toStr(row.getCell(3).value) || 'Desconocida'
       const datos = toStr(row.getCell(4).value) || 'Datos'
       const areaNombre = toStr(row.getCell(5).value)
       const sistemaNombre = toStr(row.getCell(6).value)
-      const en_desarrollo = toSiNo(row.getCell(7).value)           // String? -> "SI"/"NO"
+
+      const en_desarrollo = toSiNo(row.getCell(7).value) // String? -> "SI"/"NO"
       const capa = toStr(row.getCell(8).value) || 'Core'
       const usuario = toStr(row.getCell(11).value) || 'default_user'
       const documento_detalle = toStr(row.getCell(12).value) || 'N/A'
-      const depende_de_la_plaza = toBool(row.getCell(13).value)          // Boolean?
-      const comentarios = toStr(row.getCell(14).value) || ''     // String?
-      const depende_del_entorno = toBool(row.getCell(15).value)          // Boolean?
-      const ambiente_testing = toSiNo(row.getCell(16).value, 'NO')    // String? -> "SI"/"NO"
+      const depende_de_la_plaza = toBool(row.getCell(13).value)
+      const comentarios = toStr(row.getCell(14).value) || ''
+      const depende_del_entorno = toBool(row.getCell(15).value)
+      const ambiente_testing = toSiNo(row.getCell(16).value, 'NO')
       const paisNombre = toStr(row.getCell(17).value)
-      const borrar = toBool(row.getCell(18).value)          // Boolean?
+      const borrar = toBool(row.getCell(18).value)
 
       const areaFuncionalId = await findAreaId(areaNombre)
       const sistemaId = await findSistemaId(sistemaNombre)
       const paisId = await findPaisId(paisNombre)
 
-      // Construcción del payload conforme a tu schema Prisma (tipos correctos)
+      // Construcción del payload conforme a tu schema Prisma
       const data = {
         codigo,
         descripcion,
-        datos,                       // String?
-        en_desarrollo,               // String? ("SI"/"NO")
-        capa,                        // String?
-        usuario,                     // String?
-        documento_detalle,           // String?
-        depende_de_la_plaza,         // Boolean?
-        comentarios,                 // String?
-        depende_del_entorno,         // Boolean?
-        ambiente_testing,            // String? ("SI"/"NO")
-        borrar,                      // Boolean?
+        datos,
+        en_desarrollo,          // String? ("SI"/"NO")
+        capa,
+        usuario,
+        documento_detalle,
+        depende_de_la_plaza,    // Boolean?
+        comentarios,
+        depende_del_entorno,    // Boolean?
+        ambiente_testing,       // String? ("SI"/"NO")
+        borrar,                 // Boolean?
+
+        // 🔹 versión SIEMPRE
+        versionId,
+
         ...(areaFuncionalId !== undefined ? { areaFuncionalId } : {}),
         ...(sistemaId !== undefined ? { sistemaId } : {}),
         ...(paisId !== undefined ? { paisId } : {}),
@@ -262,14 +342,18 @@ export async function importFromExcel(app, _filePathIgnored) {
       ok++
     } catch (e) {
       fail++
-      app.log.warn({
-        row: rowNumber,
-        name: e?.name,
-        message: (e?.message || '').slice(0, 600)
-      }, 'Error importando fila')
+      app.log.warn(
+        {
+          row: rowNumber,
+          name: e?.name,
+          message: (e?.message || '').slice(0, 600),
+        },
+        'Error importando fila'
+      )
     }
   }
 
-  return { ok, fail }
+  app.log.info({ ok, fail, versionId }, 'Importación desde Excel finalizada')
+  return { ok, fail, versionId }
 }
 

@@ -1,10 +1,10 @@
 generator client {
-    provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-    provider = "mysql"
-    url      = env("DATABASE_URL")
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
 // ===========================
@@ -12,83 +12,94 @@ datasource db {
 // ===========================
 
 model User {
-    // Identidad
-    id String @id @default(cuid())
+  id       String  @id @default(cuid())
+  email    String  @unique
+  password String
+  name     String
+  isActive Boolean @default(true)
 
-    // Campos base
-    email    String  @unique
-    password String
-    name     String
-    isActive Boolean @default(true)
+  username   String? @unique
+  nombre     String?
+  login_ldap String? @map("login_ldap")
+  avatarUrl  String? @map("avatar_url")
+  foto       String?
+  externoId  Int?    @map("externo_id")
+  rolExterno String? @map("rol_externo")
 
-    // Campos adicionales (portados de Adonis)
-    username   String? @unique
-    nombre     String?
-    login_ldap String? @map("login_ldap")
-    avatarUrl  String? @map("avatar_url")
-    foto       String?
-    externoId  Int?    @map("externo_id")
-    rolExterno String? @map("rol_externo")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-    // Timestamps
-    createdAt DateTime @default(now()) @map("created_at")
-    updatedAt DateTime @updatedAt @map("updated_at")
+  roles           UserRole[]
+  AuditLog        AuditLog[]
+  inventarioTabla InventarioTabla[]
 
-    // Relaciones
-    roles           UserRole[]
-    AuditLog        AuditLog[]
-    inventarioTabla InventarioTabla[]
-
-    @@map("users")
+  @@map("users")
 }
 
 model Role {
-    id          String           @id @default(cuid())
-    name        String           @unique
-    description String?
-    users       UserRole[]
-    permissions RolePermission[]
-    createdAt   DateTime         @default(now())
+  id          String           @id @default(cuid())
+  name        String           @unique
+  description String?
+  users       UserRole[]
+  permissions RolePermission[]
+  createdAt   DateTime         @default(now())
 }
 
 model Permission {
-    id          String           @id @default(cuid())
-    action      String
-    resource    String
-    description String?
-    roles       RolePermission[]
+  id          String           @id @default(cuid())
+  action      String
+  resource    String
+  description String?
+  roles       RolePermission[]
 
-    @@unique([action, resource])
+  @@unique([action, resource])
 }
 
 model UserRole {
-    userId String
-    roleId String
-    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-    role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  userId String
+  roleId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
-    @@id([userId, roleId])
+  @@id([userId, roleId])
 }
 
 model RolePermission {
-    roleId       String
-    permissionId String
-    role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-    permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
-    @@id([roleId, permissionId])
+  @@id([roleId, permissionId])
 }
 
 model AuditLog {
-    id        String   @id @default(cuid())
-    userId    String?
-    user      User?    @relation(fields: [userId], references: [id])
-    action    String
-    entity    String?
-    entityId  String?
-    metadata  Json?
-    ip        String?
-    createdAt DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String?
+  entityId  String?
+  metadata  Json?
+  ip        String?
+  createdAt DateTime @default(now())
+}
+
+// ============================================
+// VERSIÓN DE CATÁLOGO (multi-Excel / multi-escenario)
+// ============================================
+
+model CatalogVersion {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique // ej: "GL_V2R3", "GL_V3R1.1"
+  name      String // ej: "PRD_99000_GL_V2R3 - Inventario"
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  areas    AreaFuncional[]
+  sistemas Sistema[]
+  tablas   InventarioTabla[]
 }
 
 // ============================================
@@ -96,76 +107,93 @@ model AuditLog {
 // ============================================
 
 model AreaFuncional {
-    id        Int      @id @default(autoincrement())
-    nombre    String
-    codigo    String
-    createdAt DateTime @default(now()) @map("created_at")
-    updatedAt DateTime @updatedAt @map("updated_at")
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  codigo    Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-    inventarioTablas InventarioTabla[]
+  // versión obligatoria
+  versionId Int
+  version   CatalogVersion @relation(fields: [versionId], references: [id])
 
-    //@@map("areas")
+  inventarioTablas InventarioTabla[]
+  sistemas         Sistema[]
+
+  // mismo código puede repetirse en otra versión
+  @@unique([codigo, versionId])
 }
 
 model Sistema {
-    id                 Int      @id @default(autoincrement())
-    cod_area_funcional Int
-    cod_sistema        Int
-    corr               Int
-    sistema            String
-    createdAt          DateTime @default(now()) @map("created_at")
-    updatedAt          DateTime @updatedAt @map("updated_at")
+  id                 Int      @id @default(autoincrement())
+  cod_area_funcional Int
+  cod_sistema        Int
+  corr               Int
+  sistema            String
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
-    inventarioTablas InventarioTabla[]
+  // versión obligatoria
+  versionId Int
+  version   CatalogVersion @relation(fields: [versionId], references: [id])
 
-    @@map("sistemas")
+  // 🔹 relación con Área por código + versión (UNA sola línea)
+  areaFuncional    AreaFuncional?    @relation(fields: [cod_area_funcional, versionId], references: [codigo, versionId], onDelete: Cascade)
+  inventarioTablas InventarioTabla[]
+
+  @@index([cod_area_funcional, versionId])
+  @@index([versionId])
+  @@map("sistemas")
 }
 
 model Pais {
-    id        Int      @id @default(autoincrement())
-    nombre    String
-    isoCode   String?
-    createdAt DateTime @default(now()) @map("created_at")
-    updatedAt DateTime @updatedAt @map("updated_at")
+  id        Int      @id @default(autoincrement())
+  nombre    String
+  isoCode   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-    inventarioTablas InventarioTabla[]
+  inventarioTablas InventarioTabla[]
 
-    @@map("paises")
+  @@map("paises")
 }
 
 model InventarioTabla {
-    id                  Int      @id @default(autoincrement())
-    codigo              String
-    descripcion         String
-    datos               String?
-    en_desarrollo       String?
-    capa                String?
-    usuario             String?
-    documento_detalle   String?
-    depende_de_la_plaza Boolean?
-    comentarios         String?
-    depende_del_entorno Boolean?
-    ambiente_testing    String?
-    borrar              Boolean?
+  id                  Int      @id @default(autoincrement())
+  codigo              String
+  descripcion         String
+  datos               String?
+  en_desarrollo       String?
+  capa                String?
+  usuario             String?
+  documento_detalle   String?
+  depende_de_la_plaza Boolean?
+  comentarios         String?
+  depende_del_entorno Boolean?
+  ambiente_testing    String?
+  borrar              Boolean?
 
-    // FKs opcionales
-    areaFuncionalId Int?
-    sistemaId       Int?
-    paisId          Int?
-    userId          String? // referencia a User.id (String)
+  areaFuncionalId Int?
+  sistemaId       Int?
+  paisId          Int?
+  userId          String?
 
-    createdAt DateTime @default(now()) @map("created_at")
-    updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-    // Relaciones
-    areaFuncional AreaFuncional? @relation(fields: [areaFuncionalId], references: [id], onDelete: Cascade)
-    sistema       Sistema?       @relation(fields: [sistemaId], references: [id], onDelete: Cascade)
-    pais          Pais?          @relation(fields: [paisId], references: [id], onDelete: SetNull)
-    user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
-    //@@map("inventarios")
+  // versión obligatoria
+  versionId Int?
+  version   CatalogVersion? @relation(fields: [versionId], references: [id])
 
-    @@index([areaFuncionalId])
-    @@index([sistemaId])
-    @@index([paisId])
-    @@index([userId])
+  areaFuncional AreaFuncional? @relation(fields: [areaFuncionalId], references: [id], onDelete: Cascade)
+  sistema       Sistema?       @relation(fields: [sistemaId], references: [id], onDelete: Cascade)
+  pais          Pais?          @relation(fields: [paisId], references: [id], onDelete: SetNull)
+  user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  //@@map("inventarios")
+
+  @@index([areaFuncionalId])
+  @@index([sistemaId])
+  @@index([paisId])
+  @@index([userId])
+  @@index([versionId])
 }
