@@ -1,1 +1,0 @@
-import{P as a,a as s}from"./index-DoNdm23b.js";const o=()=>{const e=a.getItem("prefers-dark");if(typeof e=="boolean")return s.set(e);const t=window.matchMedia?.("(prefers-color-scheme: dark)").matches;s.set(t)};export{o as default};
