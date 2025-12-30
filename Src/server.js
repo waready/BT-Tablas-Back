@@ -68,7 +68,7 @@ app.addHook('onRequest', async (request, reply) => {
 const __filename = fileURLToPath(import.meta.url)
 const __dirname  = path.dirname(__filename)
 // ✅ apunta directo al dist/spa
-const spaRoot = path.resolve(__dirname, 'public', 'dist', 'spa')
+const spaRoot = path.resolve(__dirname, 'public', 'spa', 'spa')
 
 await app.register(staticPlugin, {
   root: spaRoot,
