@@ -22,7 +22,24 @@ export async function list(app, { page = 1, limit = 10, search = '', sortBy = 'i
   const take = takeCap(limit, 100)
 
   // Campos permitidos para orden
-  const orderBy = ['id', 'codigo', 'descripcion', 'createdAt', 'updatedAt'].includes(sortBy) ? { [sortBy]: order === 'desc' ? 'desc' : 'asc' } : { id: 'asc' }
+  const dir = order === 'desc' ? 'desc' : 'asc'
+
+  const sortMap = {
+    id: { id: dir },
+    codigo: { codigo: dir },
+    descripcion: { descripcion: dir },
+    datos: { datos: dir },
+    createdAt: { createdAt: dir },
+    updatedAt: { updatedAt: dir },
+    en_desarrollo: { en_desarrollo: dir },
+    capa: { capa: dir },
+    // 👇 ordenar por relación (texto)
+    area_funcional: { areaFuncional: { nombre: dir } },
+    sistema: { sistema: { sistema: dir } },   // si tu campo es "nombre", cambia a { nombre: dir }
+    pais: { pais: { nombre: dir } },
+  }
+
+  const orderBy = sortMap[sortBy] ?? { id: 'asc' }
 
   const where = search
     ? {
@@ -132,7 +149,7 @@ export async function importFromExcel(app, _filePathIgnored) {
   // ============================
   // 1) Archivo y versión
   // ============================
-  const FILE_NAME = 'PRD_99000_GL_V3R1_ Inventario BBDD.4-1.xlsm'
+  const FILE_NAME = 'PRD_99000_GL_V2R3_ Inventario BBDD.44.xlsm'
 
   // ⚠️ AJUSTA ESTE CODE según la versión que corresponda a ese Excel
   const VERSION_CODE = 'GL_V3R1.1'
@@ -296,13 +313,13 @@ export async function importFromExcel(app, _filePathIgnored) {
       // Lectura de columnas (lo mismo que tenías)
       const codigo = toStr(row.getCell(2).value) || 'Desconocida'
       const descripcion = toStr(row.getCell(3).value) || 'Desconocida'
-      const datos = toStr(row.getCell(4).value) || 'Datos'
+      const datos = toStr(row.getCell(4).value)
       const areaNombre = toStr(row.getCell(5).value)
       const sistemaNombre = toStr(row.getCell(6).value)
 
-      const en_desarrollo = toSiNo(row.getCell(7).value) // String? -> "SI"/"NO"
-      const capa = toStr(row.getCell(8).value) || 'Core'
-      const usuario = toStr(row.getCell(11).value) || 'default_user'
+      const en_desarrollo = toStr(row.getCell(7).value) // String? -> "SI"/"NO"
+      const capa = toStr(row.getCell(8).value)  || '—'
+      const usuario = toStr(row.getCell(11).value) || ''
       const documento_detalle = toStr(row.getCell(12).value) || 'N/A'
       const depende_de_la_plaza = toBool(row.getCell(13).value)
       const comentarios = toStr(row.getCell(14).value) || ''

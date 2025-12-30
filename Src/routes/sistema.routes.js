@@ -14,7 +14,7 @@ export default async function sistemasRoutes(app) {
             page: { type: 'integer', minimum: 1 },
             limit: { type: 'integer', minimum: 1, maximum: 100 },
             search: { type: 'string' },
-            sortBy: { type: 'string', enum: ['id', 'codigo', 'descripcion', 'createdAt', 'updatedAt'] },
+            sortBy: { type: 'string', enum: ['id','cod_sistema', 'cod_area_funcional', 'corr', 'sistema', 'createdAt', 'updatedAt'] },
             order: { type: 'string', enum: ['asc', 'desc'] }
         }
     }

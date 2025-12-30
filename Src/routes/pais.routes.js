@@ -35,7 +35,7 @@ export default async function paisesRoutes(app) {
             page: { type: 'integer', minimum: 1 },
             limit: { type: 'integer', minimum: 1, maximum: 100 },
             search: { type: 'string' },
-            sortBy: { type: 'string', enum: ['id', 'codigo', 'descripcion', 'createdAt', 'updatedAt'] },
+            sortBy: { type: 'string', enum: ['id','isoCode', 'nombre', 'createdAt', 'updatedAt'] },
             order: { type: 'string', enum: ['asc', 'desc'] }
         }
     }

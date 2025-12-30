@@ -7,12 +7,14 @@ import authPlugin from './plugins/auth.js'
 import accessPlugin from './plugins/access.js'   // <-- después de authPlugin
 import swaggerPlugin from './plugins/swagger.js'
 import cookie from '@fastify/cookie'
+import multipart, { ajvFilePlugin } from '@fastify/multipart'
 import openaiPlugin from './plugins/openai.js'
 
 // imports mínimos para estáticos
 import staticPlugin from '@fastify/static'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
 
 // rutas...
 import permissionRoutes from './routes/permission.routes.js'
@@ -27,8 +29,9 @@ import areaFuncionalRoutes from './routes/areaFuncional.routes.js'
 import inventarioTablaRoutes from './routes/inventarioTabla.routes.js'
 import reportesRoutes from './routes/reportes.routes.js'
 import assistantRoutes from './routes/assistant.routes.js'
+import excelPrismaRoutes from './routes/excel.routes.js'
 
-const app = Fastify({ logger: true, trustProxy: true })
+const app = Fastify({ logger: true, trustProxy: true,  ajv: {plugins: [ajvFilePlugin]} })
 
 // decoradores donde guardaremos datos del request actual
 app.decorate('lastReqUserId', null)
@@ -55,7 +58,9 @@ await app.register(prismaPlugin)
 await app.register(authPlugin)       // ✅ primero JWT
 await app.register(accessPlugin)     // ✅ luego access (usa jwt)
 await app.register(swaggerPlugin)
-
+await app.register(multipart, {
+  attachFieldsToBody: true
+})
 // 🔹 solo IP aquí
 app.addHook('onRequest', async (request, reply) => {
   app.lastReqIp = request.ip
@@ -121,6 +126,7 @@ await app.register(userRoutes, { prefix: '/api/v1' })
 await app.register(inventarioTablaRoutes, { prefix: '/api/v1' })
 await app.register(reportesRoutes, { prefix: '/api/v1' })
 await app.register(assistantRoutes,{ prefix: '/api/v1' })
+await app.register(excelPrismaRoutes, { prefix: '/api/v1' })
 
 await app.ready()
 app.swagger()

@@ -9,9 +9,10 @@ export default async function inventarioTablaRoutes(app) {
         type: 'object',
         properties: {
             page: { type: 'integer', minimum: 1 },
-            limit: { type: 'integer', minimum: 1, maximum: 100 },
+            limit: { type: 'integer', minimum: 1, maximum: 500 },
             search: { type: 'string' },
-            sortBy: { type: 'string', enum: ['id', 'codigo', 'descripcion', 'createdAt', 'updatedAt'] },
+            sortBy: { type: 'string', enum: ['id', 'codigo', 'descripcion', 'datos', 'area_funcional', 'sistema', 'pais', 'en_desarrollo', 'capa',
+                'createdAt', 'updatedAt'] },
             order: { type: 'string', enum: ['asc', 'desc'] }
         }
     }
