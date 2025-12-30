@@ -149,7 +149,7 @@ export async function importFromExcel(app, _filePathIgnored) {
   // ============================
   // 1) Archivo y versión
   // ============================
-  const FILE_NAME = 'PRD_99000_GL_V2R3_ Inventario BBDD.44.xlsm'
+  const FILE_NAME = 'PRD_99000_GL_V3R1.1_ Inventario BBDD.45 1.xlsm'
 
   // ⚠️ AJUSTA ESTE CODE según la versión que corresponda a ese Excel
   const VERSION_CODE = 'GL_V3R1.1'

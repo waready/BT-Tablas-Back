@@ -67,11 +67,29 @@ app.addHook('onRequest', async (request, reply) => {
 })
 const __filename = fileURLToPath(import.meta.url)
 const __dirname  = path.dirname(__filename)
+// ✅ apunta directo al dist/spa
+const spaRoot = path.resolve(__dirname, 'public', 'dist', 'spa')
+
 await app.register(staticPlugin, {
-  root: path.resolve(__dirname, 'public'),
-  prefix: '/',                                  
+  root: spaRoot,
+  prefix: '/',
+  index: false // ❗ no auto index; lo servimos nosotros
 })
-app.get('/', (req, reply) => reply.type('text/html; charset=utf-8').sendFile('index.html'))
+
+// ✅ home
+app.get('/', (req, reply) => {
+  return reply.type('text/html; charset=utf-8').sendFile('index.html')
+})
+
+// ✅ fallback SPA (MUY IMPORTANTE)
+app.setNotFoundHandler((req, reply) => {
+  // No interceptar APIs
+  if (req.raw.url.startsWith('/api/')) {
+    return reply.code(404).send({ message: 'Not found' })
+  }
+  // Servir SPA para cualquier ruta del frontend
+  return reply.type('text/html; charset=utf-8').sendFile('index.html')
+})
 app.get('/healthz', async () => ({ status: 'ok', service: 'bt-tablas', time: new Date().toISOString() }))
 app.get('/health', {
   schema: { tags: ['System'], description: 'Healthcheck' }
